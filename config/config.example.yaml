@@ -1,18 +1,22 @@
 # auto-respond 主配置
 
-adapter: wcferry  # wcferry | mock
+# 你在聊天记录中的名字（用于识别哪些消息是你发的）
+user_name: 我
 
-# 白名单：仅对这些 wxid / 群名 生效，留空表示全部
-whitelist: []
-# 示例:
-# whitelist:
-#   - wxid_abc123
-#   - 工作群
+llm:
+  provider: openai_compatible  # mock | openai_compatible
+  api_key: ${OPENAI_API_KEY}   # 也可直接写 key，建议用环境变量
+  base_url: https://api.openai.com/v1
+  # DeepSeek 示例:
+  # base_url: https://api.deepseek.com/v1
+  # model: deepseek-chat
+  model: gpt-4o-mini
+  temperature: 0.7
 
-# 黑名单：忽略这些联系人/群
-blacklist: []
-
-# 默认冷却时间（秒），同一规则对同一发送者的最小回复间隔
-default_cooldown: 60
+generation:
+  num_suggestions: 3           # 生成几条回复建议
+  max_context_messages: 30     # 最多参考多少条历史消息
+  style: 自然、口语化，像真实微信聊天
+  language: zh
 
 log_level: INFO

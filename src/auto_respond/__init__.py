@@ -1,3 +1,3 @@
-"""auto-respond: 微信消息自动回复工具"""
+"""auto-respond: 根据聊天记录生成微信回复建议"""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

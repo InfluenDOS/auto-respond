@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -14,28 +15,34 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 
 
 @dataclass
+class LLMConfig:
+    provider: str = "mock"
+    api_key: str = ""
+    base_url: str = "https://api.openai.com/v1"
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.7
+
+
+@dataclass
+class GenerationConfig:
+    num_suggestions: int = 3
+    max_context_messages: int = 30
+    style: str = "自然、口语化，像真实微信聊天"
+    language: str = "zh"
+
+
+@dataclass
 class AppConfig:
-    adapter: str = "mock"
-    whitelist: list[str] = field(default_factory=list)
-    blacklist: list[str] = field(default_factory=list)
-    default_cooldown: int = 60
+    user_name: str = "我"
+    llm: LLMConfig = field(default_factory=LLMConfig)
+    generation: GenerationConfig = field(default_factory=GenerationConfig)
     log_level: str = "INFO"
 
 
-@dataclass
-class Rule:
-    name: str
-    enabled: bool
-    match_type: str
-    pattern: str
-    reply: str
-    senders: list[str] = field(default_factory=list)
-    cooldown: int | None = None
-
-
-@dataclass
-class RulesConfig:
-    rules: list[Rule] = field(default_factory=list)
+def _resolve_env(value: str) -> str:
+    if value.startswith("${") and value.endswith("}"):
+        return os.environ.get(value[2:-1], "")
+    return value
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -53,33 +60,23 @@ def load_app_config(path: Path | None = None) -> AppConfig:
         logger.warning("未找到 config.yaml，使用 config.example.yaml")
 
     data = _load_yaml(config_path)
+    llm_data = data.get("llm", {})
+    gen_data = data.get("generation", {})
+
     return AppConfig(
-        adapter=data.get("adapter", "mock"),
-        whitelist=data.get("whitelist") or [],
-        blacklist=data.get("blacklist") or [],
-        default_cooldown=int(data.get("default_cooldown", 60)),
+        user_name=data.get("user_name", "我"),
+        llm=LLMConfig(
+            provider=llm_data.get("provider", "mock"),
+            api_key=_resolve_env(llm_data.get("api_key", "")),
+            base_url=llm_data.get("base_url", "https://api.openai.com/v1"),
+            model=llm_data.get("model", "gpt-4o-mini"),
+            temperature=float(llm_data.get("temperature", 0.7)),
+        ),
+        generation=GenerationConfig(
+            num_suggestions=int(gen_data.get("num_suggestions", 3)),
+            max_context_messages=int(gen_data.get("max_context_messages", 30)),
+            style=gen_data.get("style", "自然、口语化，像真实微信聊天"),
+            language=gen_data.get("language", "zh"),
+        ),
         log_level=data.get("log_level", "INFO"),
     )
-
-
-def load_rules(path: Path | None = None) -> RulesConfig:
-    rules_path = path or CONFIG_DIR / "rules.yaml"
-    if not rules_path.exists():
-        rules_path = CONFIG_DIR / "rules.example.yaml"
-        logger.warning("未找到 rules.yaml，使用 rules.example.yaml")
-
-    data = _load_yaml(rules_path)
-    rules = []
-    for item in data.get("rules", []):
-        rules.append(
-            Rule(
-                name=item["name"],
-                enabled=item.get("enabled", True),
-                match_type=item.get("match_type", "contains"),
-                pattern=item["pattern"],
-                reply=item["reply"],
-                senders=item.get("senders") or [],
-                cooldown=item.get("cooldown"),
-            )
-        )
-    return RulesConfig(rules=rules)
