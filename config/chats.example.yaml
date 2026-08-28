@@ -1,0 +1,22 @@
+# 指定要管理的聊天记录（只读取这里列出的记录）
+
+style_learning:
+  enabled: true
+  max_samples: 50        # 从所有记录中提取多少条自己的消息
+  prompt_samples: 8      # 放入 prompt 的示例条数
+
+chats:
+  - id: zhangsan
+    name: 张三
+    file: chats/zhangsan.txt
+    enabled: true
+
+  - id: lisi
+    name: 李四
+    file: chats/lisi.json
+    enabled: true
+
+  # - id: wangwu
+  #   name: 王五
+  #   file: chats/wangwu.txt
+  #   enabled: false
