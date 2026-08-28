@@ -1,0 +1,2 @@
+pyyaml>=6.0
+wcferry>=39.0; sys_platform == "win32"

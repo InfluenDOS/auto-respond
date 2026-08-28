@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-respond"
+version = "0.1.0"
+description = "微信消息自动回复工具"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+wcferry = ["wcferry>=39.0; sys_platform == 'win32'"]
+
+[project.scripts]
+auto-respond = "auto_respond.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

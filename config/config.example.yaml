@@ -1,0 +1,18 @@
+# auto-respond 主配置
+
+adapter: wcferry  # wcferry | mock
+
+# 白名单：仅对这些 wxid / 群名 生效，留空表示全部
+whitelist: []
+# 示例:
+# whitelist:
+#   - wxid_abc123
+#   - 工作群
+
+# 黑名单：忽略这些联系人/群
+blacklist: []
+
+# 默认冷却时间（秒），同一规则对同一发送者的最小回复间隔
+default_cooldown: 60
+
+log_level: INFO

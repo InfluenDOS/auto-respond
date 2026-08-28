@@ -1,0 +1,21 @@
+rules:
+  - name: 问候自动回复
+    enabled: true
+    match_type: contains  # exact | contains | regex
+    pattern: 你好
+    reply: "你好 {sender}，我现在暂时不在，看到消息后会尽快回复。"
+
+  - name: 在吗
+    enabled: true
+    match_type: contains
+    pattern: 在吗
+    reply: "在的，有什么事请留言，我会尽快回复。"
+
+  - name: 价格咨询
+    enabled: false
+    match_type: regex
+    pattern: "(价格|多少钱|怎么收费)"
+    reply: "感谢咨询！详细价格请查看：https://example.com/pricing"
+    cooldown: 300
+    # senders:  # 可选：限定特定发送者
+    #   - wxid_someone
