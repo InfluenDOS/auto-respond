@@ -5,10 +5,8 @@ import logging
 import sys
 from pathlib import Path
 
-from auto_respond.chat.loader import load_conversation, load_from_paste
 from auto_respond.config import load_app_config
-from auto_respond.generator import create_generator
-from auto_respond.models import Conversation
+from auto_respond.service import SuggestService
 
 
 def _setup_logging(level: str) -> None:
@@ -19,7 +17,7 @@ def _setup_logging(level: str) -> None:
     )
 
 
-def _print_conversation(conversation: Conversation) -> None:
+def _print_conversation(conversation) -> None:
     print(f"\n--- 与「{conversation.contact or '对方'}」的聊天记录 ---")
     for msg in conversation.messages:
         prefix = "我" if msg.is_self else msg.sender
@@ -35,80 +33,70 @@ def _print_suggestions(suggestions: list[str]) -> None:
     print()
 
 
+def cmd_list(args: argparse.Namespace) -> None:
+    config = load_app_config(args.config)
+    service = SuggestService(config)
+    chats = service.list_chats()
+    if not chats:
+        print("未配置任何聊天记录，请编辑 config/chats.yaml")
+        return
+    print("已指定的聊天记录：")
+    for chat in chats:
+        print(f"  {chat.id:12} {chat.name:8} {chat.file}")
+
+
 def cmd_suggest(args: argparse.Namespace) -> None:
     config = load_app_config(args.config)
     if args.mock:
         config.llm.provider = "mock"
 
     _setup_logging(config.log_level)
-    logger = logging.getLogger("auto_respond")
+    service = SuggestService(config)
 
-    if args.paste:
-        conversation = load_from_paste(user_name=config.user_name)
-    elif args.chat:
-        conversation = load_conversation(args.chat, user_name=config.user_name)
-    else:
-        print("请指定 --chat 文件路径，或使用 --paste 粘贴聊天记录", file=sys.stderr)
+    if not args.id:
+        print("请使用 --id 指定聊天记录（先用 list 命令查看）", file=sys.stderr)
         sys.exit(1)
 
-    if not conversation.messages:
-        print("未解析到任何消息，请检查聊天记录格式。", file=sys.stderr)
+    try:
+        conversation, suggestions = service.suggest(args.id, force=args.force)
+    except (KeyError, ValueError, FileNotFoundError) as exc:
+        print(str(exc), file=sys.stderr)
         sys.exit(1)
 
     _print_conversation(conversation)
-
-    if not conversation.needs_reply():
-        print("最后一条消息是你自己发的，可能不需要回复。")
-        if not args.force:
-            answer = input("仍要生成建议？(y/N) ").strip().lower()
-            if answer != "y":
-                return
-
-    generator = create_generator(config)
-    logger.info("使用 %s 生成回复建议...", config.llm.provider)
-
-    suggestions = generator.generate(conversation, config)
-    if not suggestions:
-        print("未能生成回复建议，请检查配置或重试。", file=sys.stderr)
-        sys.exit(1)
-
     _print_suggestions(suggestions)
+
+
+def cmd_gui(args: argparse.Namespace) -> None:
+    from auto_respond.gui import run_gui
+
+    config = load_app_config(args.config)
+    if args.mock:
+        config.llm.provider = "mock"
+    run_gui(config)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="根据微信聊天记录，智能生成回复建议（不自动发送）"
     )
+    parser.add_argument("--config", type=Path, default=None, help="配置文件路径")
+    parser.add_argument("--mock", action="store_true", help="使用 Mock 模式（无需 API Key）")
+
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    suggest_parser = subparsers.add_parser("suggest", help="根据聊天记录生成回复建议")
-    suggest_parser.add_argument(
-        "--chat", "-c",
-        type=Path,
-        help="聊天记录文件（.txt 或 .json）",
-    )
-    suggest_parser.add_argument(
-        "--paste", "-p",
-        action="store_true",
-        help="交互式粘贴聊天记录",
-    )
-    suggest_parser.add_argument(
-        "--mock",
-        action="store_true",
-        help="使用 Mock 模式（无需 API Key）",
-    )
-    suggest_parser.add_argument(
-        "--force", "-f",
-        action="store_true",
-        help="即使最后一条是自己发的也生成建议",
-    )
-    suggest_parser.add_argument(
-        "--config",
-        type=Path,
-        default=None,
-        help="配置文件路径",
-    )
+    list_parser = subparsers.add_parser("list", help="列出已指定的聊天记录")
+    list_parser.set_defaults(func=cmd_list)
+
+    suggest_parser = subparsers.add_parser("suggest", help="为指定聊天生成回复建议")
+    suggest_parser.add_argument("--id", "-i", required=True, help="聊天记录 ID（在 chats.yaml 中配置）")
+    suggest_parser.add_argument("--force", "-f", action="store_true", help="强制生成建议")
+    suggest_parser.add_argument("--mock", action="store_true", help="使用 Mock 模式（无需 API Key）")
     suggest_parser.set_defaults(func=cmd_suggest)
+
+    gui_parser = subparsers.add_parser("gui", help="打开桌面图形界面")
+    gui_parser.add_argument("--mock", action="store_true", help="使用 Mock 模式（无需 API Key）")
+    gui_parser.set_defaults(func=cmd_gui)
 
     args = parser.parse_args()
     args.func(args)
